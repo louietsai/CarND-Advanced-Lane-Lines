@@ -165,8 +165,8 @@ cv2.imwrite(write_name, top_down)
 
 
 # Read in an image and grayscale it
-#image = mpimg.imread('test_images/test1.jpg')
-image = cv2.imread('test_images/test1.jpg')
+image = mpimg.imread('test_images/test1.jpg')
+#image = cv2.imread('test_images/test1.jpg')
 
 # Define a function that applies Sobel x or y, 
 # then takes an absolute value and applies a threshold.
@@ -176,7 +176,7 @@ def abs_sobel_thresh(img, orient='x', thresh_min=0, thresh_max=255):
     
     # Apply the following steps to img
     # 1) Convert to grayscale(sobelx)
-    gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+    gray = cv2.cvtColor(img,cv2.COLOR_RGB2GRAY)
     # 2) Take the derivative in x or y given orient = 'x' or 'y'
     sobelx = cv2.Sobel(gray, cv2.CV_64F, 1, 0)
     #cv2.imshow('sobelx', sobelx)
@@ -204,20 +204,43 @@ def abs_sobel_thresh(img, orient='x', thresh_min=0, thresh_max=255):
     # 6) Return this mask as your binary_output image
     binary_output = sxbinary#np.copy(img) # Remove this line
     return binary_output
+ 
+
+
+# Define a function that applies Sobel x and y, 
+# then computes the magnitude of the gradient
+# and applies a threshold
+def mag_thresh(img, sobel_kernel=9, mag_thresh=(30, 100)):
+    
+    # Convert to grayscale
+    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+    # Take both Sobel x and y gradients
+    sobelx = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=sobel_kernel)
+    sobely = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=sobel_kernel)
+    # Calculate the gradient magnitude
+    gradmag = np.sqrt(sobelx**2 + sobely**2)
+    # Rescale to 8 bit
+    scale_factor = np.max(gradmag)/255 
+    gradmag = (gradmag/scale_factor).astype(np.uint8) 
+    # Create a binary image of ones where threshold is met, zeros otherwise
+    binary_output = np.zeros_like(gradmag)
+    binary_output[(gradmag >mag_thresh[0]) & (gradmag < mag_thresh[1])] = 1
+
+    return binary_output
     
 # Run the function
-grad_binary = abs_sobel_thresh(image, orient='x', thresh_min=20, thresh_max=150)
+mag_binary = mag_thresh(image, sobel_kernel=3, mag_thresh=(30, 100))
+   
+# Run the function
+grad_binary = abs_sobel_thresh(image, orient='x', thresh_min=20, thresh_max=100)
 # Plot the result
-#f, (ax1, ax2) = plt.subplots(1, 2, figsize=(24, 9))
-#f.tight_layout()
-#ax1.imshow(image)
-#ax1.set_title('Original Image', fontsize=50)
+f, (ax1, ax2) = plt.subplots(1, 2, figsize=(24, 9))
+f.tight_layout()
+ax1.imshow(image)
+ax1.set_title('Original Image', fontsize=50)
 #ax2.imshow(grad_binary, cmap='gray')
 #ax2.set_title('Thresholded Gradient', fontsize=50)
-#plt.subplots_adjust(left=0., right=1, top=0.9, bottom=0.)
-
-print("after abs_sobel")
-cv2.imshow('image', image)
-cv2.waitKey(500)
-cv2.imshow('grad_binary', grad_binary)
-cv2.waitKey(1000)
+ax2.imshow(mag_binary, cmap='gray')
+ax2.set_title('ThresholdedMap', fontsize=50)
+plt.subplots_adjust(left=0., right=1, top=0.9, bottom=0.)
+plt.show()
