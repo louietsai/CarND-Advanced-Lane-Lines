@@ -26,7 +26,8 @@ images = glob.glob('camera_cal/calibration*.jpg')
 for idx, fname in enumerate(images):
     print(idx,fname)
     img = cv2.imread(fname)
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    #gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
 
     # Find the chessboard corners
     ret, corners = cv2.findChessboardCorners(gray, (9,6), None)
@@ -153,10 +154,70 @@ def corners_unwarp(img, nx, ny, mtx, dist):
     return warped, M
 
 top_down, perspective_M = corners_unwarp(img, nx, ny, mtx, dist)
-print("after corner_unwarp")
-cv2.imshow('img', img)
-cv2.waitKey(500)
-cv2.imshow('top_down', top_down)
-cv2.waitKey(1000)
+#print("after corner_unwarp")
+#cv2.imshow('img', img)
+#cv2.waitKey(500)
+#cv2.imshow('top_down', top_down)
+#cv2.waitKey(1000)
 write_name = 'output_images/calibration13.jpg'
 cv2.imwrite(write_name, top_down)
+
+
+
+# Read in an image and grayscale it
+#image = mpimg.imread('test_images/test1.jpg')
+image = cv2.imread('test_images/test1.jpg')
+
+# Define a function that applies Sobel x or y, 
+# then takes an absolute value and applies a threshold.
+# Note: calling your function with orient='x', thresh_min=5, thresh_max=100
+# should produce output like the example image shown above this quiz.
+def abs_sobel_thresh(img, orient='x', thresh_min=0, thresh_max=255):
+    
+    # Apply the following steps to img
+    # 1) Convert to grayscale(sobelx)
+    gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+    # 2) Take the derivative in x or y given orient = 'x' or 'y'
+    sobelx = cv2.Sobel(gray, cv2.CV_64F, 1, 0)
+    #cv2.imshow('sobelx', sobelx)
+    #cv2.waitKey(1000)
+    # 3) Take the absolute value of the derivative or gradient
+    abs_sobelx = np.absolute(sobelx)
+    #cv2.imshow('abs_sobelx', abs_sobelx)
+    #cv2.waitKey(1000)
+    # 4) Scale to 8-bit (0 - 255) then convert to type = np.uint8
+    scaled_sobel = np.uint8(255*abs_sobelx/np.max(abs_sobelx))
+    #cv2.imshow('scaled_sobel', scaled_sobel)
+    #cv2.waitKey(1000)
+    # 5) Create a mask of 1's where the scaled gradient magnitude 
+            # is > thresh_min and < thresh_max
+    #thresh_min = 5
+    #thresh_max = 100
+    #print(scaled_sobel)
+    #print(thresh_min,thresh_max)
+    sxbinary = np.zeros_like(scaled_sobel)
+    sxbinary[(scaled_sobel >= thresh_min) & (scaled_sobel <= thresh_max)] = 1
+    #cv2.imshow('sxbinary', sxbinary)
+    #cv2.waitKey(1000)
+    print(sxbinary)
+    #plt.imshow(sxbinary, cmap='gray')        
+    # 6) Return this mask as your binary_output image
+    binary_output = sxbinary#np.copy(img) # Remove this line
+    return binary_output
+    
+# Run the function
+grad_binary = abs_sobel_thresh(image, orient='x', thresh_min=20, thresh_max=150)
+# Plot the result
+#f, (ax1, ax2) = plt.subplots(1, 2, figsize=(24, 9))
+#f.tight_layout()
+#ax1.imshow(image)
+#ax1.set_title('Original Image', fontsize=50)
+#ax2.imshow(grad_binary, cmap='gray')
+#ax2.set_title('Thresholded Gradient', fontsize=50)
+#plt.subplots_adjust(left=0., right=1, top=0.9, bottom=0.)
+
+print("after abs_sobel")
+cv2.imshow('image', image)
+cv2.waitKey(500)
+cv2.imshow('grad_binary', grad_binary)
+cv2.waitKey(1000)
