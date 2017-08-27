@@ -142,6 +142,7 @@ def corners_unwarp(img, nx, ny, mtx, dist):
                                      [offset, img_size[1]-offset]])
             # d) use cv2.getPerspectiveTransform() to get M, the transform matrix
             #cv2.getPerspectiveTransform(src,dst,M)
+	    print(src,dst)
             M = cv2.getPerspectiveTransform(src, dst)
 	        # e) use cv2.warpPerspective() to warp your image to a top-down view
             #cv2.warpPerspective(gray, final, M)
@@ -175,8 +176,9 @@ cv2.imwrite(write_name, top_down)
 
 
 # Read in an image and grayscale it
-image = mpimg.imread('test_images/test1.jpg')
-#image = cv2.imread('test_images/test1.jpg')
+#image = mpimg.imread('test_images/straight_lines1.jpg')
+#image = mpimg.imread('test_images/straight_lines2.jpg')
+image = mpimg.imread('test_images/test2.jpg')
 
 # Define a function that applies Sobel x or y, 
 # then takes an absolute value and applies a threshold.
@@ -275,7 +277,12 @@ def pipeline(img, s_thresh=(170, 255), sx_thresh=(20, 100)):
     combined_binary[(s_binary == 1) | (sxbinary == 1)] = 1
     #return color_binary
     return combined_binary
-    
+
+def warp(img,src,dst):
+	M = cv2.getPerspectiveTransform(src, dst)
+	warped = cv2.warpPerspective(img, M,(1280,720))
+	return warped
+ 
 
 dir_binary = dir_threshold(image, sobel_kernel=15, thresh=(0.7, 1.3))   
 mag_binary = mag_thresh(image, sobel_kernel=3, mag_thresh=(30, 100))
@@ -287,11 +294,34 @@ pipe_binary = pipeline(image)
 combined = np.zeros_like(dir_binary)
 combined[((gradx_binary == 1) & (grady_binary == 1)) | ((mag_binary == 1) & (dir_binary == 1))] = 1
 
+#pre_warped_img = image
+pre_warped_img = pipe_binary
+img_size = (pre_warped_img.shape[1], pre_warped_img.shape[0])
+print(img_size)
+#src = np.float32([[255,687],[625,429],[654,429],[1041,677]])
+src = np.float32([[255,687],[609,444],[676,444],[1041,677]])
+#src = np.float32([[255,687],[586,460],[708,460],[1041,677]])
+#dst = np.float32([[255,687],[255,429],[1041,429],[1041,677]])
+newdstxl = (src[0][0]+src[1][0])/2
+newdstxr= (src[2][0]+src[3][0])/2
+newdstyd = pre_warped_img.shape[0]
+newdstyu= 0 #429#0
+dst = np.float32([[newdstxl,newdstyd],[newdstxl,newdstyu],[newdstxr,newdstyu],[newdstxr,newdstyd]])
+#warped_img = warp(pipe_binary,src,dst)
+warped_img = warp(pre_warped_img,src,dst)
+
 # Plot the result
 f, (ax1, ax2) = plt.subplots(1, 2, figsize=(24, 9))
 f.tight_layout()
 ax1.imshow(image)
 ax1.set_title('Original Image', fontsize=50)
+ax1.plot(src[0][0],src[0][1],'+')
+ax1.plot(src[1][0],src[1][1],'+')
+ax1.plot(src[2][0],src[2][1],'+')
+ax1.plot(src[3][0],src[3][1],'+')
+
+#ax1.imshow(pipe_binary, cmap='gray')
+#ax1.set_title('image before warp', fontsize=50)
 #ax2.imshow(grad_binary, cmap='gray')
 #ax2.set_title('Thresholded Gradient', fontsize=50)
 #ax2.imshow(mag_binary, cmap='gray')
@@ -300,9 +330,16 @@ ax1.set_title('Original Image', fontsize=50)
 #ax2.set_title('Thresholded Dir', fontsize=50)
 #ax2.imshow(combined, cmap='gray')
 #ax2.set_title('Thresholded combined', fontsize=50)
-ax2.imshow(hls_binary, cmap='gray')
-ax2.set_title('Thresholded HLS', fontsize=50)
-ax2.imshow(pipe_binary, cmap='gray')
-ax2.set_title('Thresholded pipe', fontsize=50)
+#ax2.imshow(hls_binary, cmap='gray')
+#ax2.set_title('Thresholded HLS', fontsize=50)
+#ax2.imshow(pipe_binary, cmap='gray')
+#ax2.set_title('Thresholded pipe', fontsize=50)
+#ax2.imshow(warped_img, cmap='gray')
+ax2.imshow(warped_img)
+ax2.set_title('warped pipe', fontsize=50)
+ax2.plot(dst[0][0],dst[0][1],'+')
+ax2.plot(dst[1][0],dst[1][1],'+')
+ax2.plot(dst[2][0],dst[2][1],'+')
+ax2.plot(dst[3][0],dst[3][1],'+')
 plt.subplots_adjust(left=0., right=1, top=0.9, bottom=0.)
 plt.show()
