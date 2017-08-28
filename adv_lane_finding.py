@@ -288,17 +288,24 @@ def warp(img,src,dst):
 #for img in images:
 leftx_list=[]
 rightx_list=[]
-margin_range = 150
+margin_range = 150#150
 cap = cv2.VideoCapture('project_video.mp4')
 # Define the codec and create VideoWriter object
 #out = cv2.VideoWriter('project_video_output.avi', -1, 20.0, (1280,720))
 frame_width=1280
 frame_height=720
+leftx_list.append(margin_range*4)
+rightx_list.append(frame_width - margin_range*4)
 fourcc = cv2.cv.CV_FOURCC(*'MPEG')
 out = cv2.VideoWriter('project_video_output.avi',fourcc, 30, (frame_width,frame_height))
 count = 0
 while cap.isOpened():
+	print("before cap.read")
     	ret,frame = cap.read()
+	if ret != 1:
+		print("ret is not 1 for cap.read")
+		#continue
+		break
     	#cv2.imshow('window-name',frame)
     	#cv2.imwrite("frame%d.jpg" % count, frame)
     	count = count + 1
@@ -367,11 +374,12 @@ while cap.isOpened():
 	rightx_list.append(rightx_current)
  	leftx_avg=np.int(np.mean(leftx_list))	
  	rightx_avg=np.int(np.mean(rightx_list))	
-	print("leftx leftx_avg rightx rightx_avg : ",leftx_current,leftx_avg,rightx_current,rightx_avg)
+	print(" -- leftx leftx_avg rightx rightx_avg : ",leftx_current,leftx_avg,rightx_current,rightx_avg)
 	if (leftx_avg - leftx_current ) > margin_range:
 		leftx_current = leftx_avg
 	if (rightx_current - rightx_avg) > margin_range:
 		rightx_current = rightx_avg
+	print(" --- leftx leftx_avg rightx rightx_avg : ",leftx_current,leftx_avg,rightx_current,rightx_avg)
 	# Set the width of the windows +/- margin
 	margin = 100
 	# Set minimum number of pixels found to recenter window
@@ -406,11 +414,12 @@ while cap.isOpened():
     		if len(good_right_inds) > minpix:        
         		rightx_current = np.int(np.mean(nonzerox[good_right_inds]))
     		#print("leftx and rightx current: ",leftx_current,rightx_current)
-		print("leftx leftx_avg rightx rightx_avg : ",leftx_current,leftx_avg,rightx_current,rightx_avg)
+		print(" == leftx leftx_avg rightx rightx_avg : ",leftx_current,leftx_avg,rightx_current,rightx_avg)
 		if (leftx_avg - leftx_current ) > margin_range:
 			leftx_current = leftx_avg
 		if (rightx_current - rightx_avg) > margin_range:
 			rightx_current = rightx_avg
+		print(" === leftx leftx_avg rightx rightx_avg : ",leftx_current,leftx_avg,rightx_current,rightx_avg)
 		leftx_list.append(leftx_current)
 		rightx_list.append(rightx_current)
 
@@ -553,6 +562,7 @@ while cap.isOpened():
 	#plt.show()
     	displayimage = cv2.cvtColor(result, cv2.COLOR_BGR2RGB)
     	cv2.imshow('window-name',displayimage)
+    	cv2.waitKey(50)
 	# write the display frame
         out.write(displayimage)
 cap.release()
