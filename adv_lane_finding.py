@@ -286,6 +286,9 @@ def warp(img,src,dst):
 
 #images = glob.glob('test_images/*.jpg')
 #for img in images:
+leftx_list=[]
+rightx_list=[]
+margin_range = 200
 cap = cv2.VideoCapture('project_video.mp4')
 count = 0
 while cap.isOpened():
@@ -354,6 +357,15 @@ while cap.isOpened():
 	# Current positions to be updated for each window
 	leftx_current = leftx_base
 	rightx_current = rightx_base
+	leftx_list.append(leftx_current)
+	rightx_list.append(rightx_current)
+ 	leftx_avg=np.int(np.mean(leftx_list))	
+ 	rightx_avg=np.int(np.mean(rightx_list))	
+	print("leftx leftx_avg rightx rightx_avg : ",leftx_current,leftx_avg,rightx_current,rightx_avg)
+	if (leftx_avg - leftx_current ) > margin_range:
+		leftx_current = leftx_avg
+	if (rightx_current - rightx_avg) > margin_range:
+		rightx_current = rightx_avg
 	# Set the width of the windows +/- margin
 	margin = 100
 	# Set minimum number of pixels found to recenter window
@@ -387,7 +399,14 @@ while cap.isOpened():
         		leftx_current = np.int(np.mean(nonzerox[good_left_inds]))
     		if len(good_right_inds) > minpix:        
         		rightx_current = np.int(np.mean(nonzerox[good_right_inds]))
-    		print("leftx and rightx current: ",leftx_current,rightx_current)
+    		#print("leftx and rightx current: ",leftx_current,rightx_current)
+		print("leftx leftx_avg rightx rightx_avg : ",leftx_current,leftx_avg,rightx_current,rightx_avg)
+		if (leftx_avg - leftx_current ) > margin_range:
+			leftx_current = leftx_avg
+		if (rightx_current - rightx_avg) > margin_range:
+			rightx_current = rightx_avg
+		leftx_list.append(leftx_current)
+		rightx_list.append(rightx_current)
 
 	# Concatenate the arrays of indices
 	left_lane_inds = np.concatenate(left_lane_inds)
