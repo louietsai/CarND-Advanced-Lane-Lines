@@ -288,7 +288,7 @@ def warp(img,src,dst):
 #for img in images:
 leftx_list=[]
 rightx_list=[]
-margin_range = 200
+margin_range = 150
 cap = cv2.VideoCapture('project_video.mp4')
 count = 0
 while cap.isOpened():
