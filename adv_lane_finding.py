@@ -290,6 +290,12 @@ leftx_list=[]
 rightx_list=[]
 margin_range = 150
 cap = cv2.VideoCapture('project_video.mp4')
+# Define the codec and create VideoWriter object
+#out = cv2.VideoWriter('project_video_output.avi', -1, 20.0, (1280,720))
+frame_width=1280
+frame_height=720
+fourcc = cv2.cv.CV_FOURCC(*'MPEG')
+out = cv2.VideoWriter('project_video_output.avi',fourcc, 30, (frame_width,frame_height))
 count = 0
 while cap.isOpened():
     	ret,frame = cap.read()
@@ -547,5 +553,8 @@ while cap.isOpened():
 	#plt.show()
     	displayimage = cv2.cvtColor(result, cv2.COLOR_BGR2RGB)
     	cv2.imshow('window-name',displayimage)
+	# write the display frame
+        out.write(displayimage)
 cap.release()
+out.release()
 cap.destroyAllWindows()
