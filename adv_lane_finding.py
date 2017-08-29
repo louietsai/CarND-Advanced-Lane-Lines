@@ -284,12 +284,12 @@ def warp(img,src,dst):
 #image = mpimg.imread('test_images/straight_lines2.jpg')
 #image = mpimg.imread('test_images/test2.jpg')
 
-#images = glob.glob('test_images/*.jpg')
 #for img in images:
 leftx_list=[]
 rightx_list=[]
 margin_range = 150#150
 cap = cv2.VideoCapture('project_video.mp4')
+images = glob.glob('test_images/*.jpg')
 # Define the codec and create VideoWriter object
 #out = cv2.VideoWriter('project_video_output.avi', -1, 20.0, (1280,720))
 frame_width=1280
@@ -299,6 +299,15 @@ rightx_list.append(frame_width - margin_range*4)
 fourcc = cv2.cv.CV_FOURCC(*'MPEG')
 out = cv2.VideoWriter('project_video_output.avi',fourcc, 30, (frame_width,frame_height))
 count = 0
+USE_TEST_IMAGE = False
+# Image ->
+#for img in images:
+#	print(img)
+#	imgname = img.split('/')[1]
+#	outfd = "output_images/"
+#	print(imgname)
+# <- Image
+# Video ->
 while cap.isOpened():
 	print("before cap.read")
     	ret,frame = cap.read()
@@ -306,16 +315,23 @@ while cap.isOpened():
 		print("ret is not 1 for cap.read")
 		#continue
 		break
-    	#cv2.imshow('window-name',frame)
-    	#cv2.imwrite("frame%d.jpg" % count, frame)
     	count = count + 1
     	if cv2.waitKey(10) & 0xFF == ord('q'):
         	break
-	#print(img)
-	#image = mpimg.imread(img)
-	#cvimage = cv2.imread(img)
     	image = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+	# <- Video
+	# Image ->
+#	image = mpimg.imread(img)
+	# <- Image
+
     	image = cv2.undistort(image, mtx, dist, None, None)
+	# Image ->
+	if USE_TEST_IMAGE == True:
+		write_name = outfd + "undist_"+imgname 
+		result = image
+    		result = cv2.cvtColor(result, cv2.COLOR_BGR2RGB)
+		cv2.imwrite(write_name, result)
+	# <- Image 
 	dir_binary = dir_threshold(image, sobel_kernel=15, thresh=(0.7, 1.3))   
 	mag_binary = mag_thresh(image, sobel_kernel=3, mag_thresh=(30, 100))
 	gradx_binary = abs_sobel_thresh(image, orient='x', thresh_min=20, thresh_max=100)
@@ -326,6 +342,13 @@ while cap.isOpened():
 	combined = np.zeros_like(dir_binary)
 	combined[((gradx_binary == 1) & (grady_binary == 1)) | ((mag_binary == 1) & (dir_binary == 1))] = 1
 
+	# Image ->
+	if USE_TEST_IMAGE == True:
+		write_name = outfd + "binary_"+imgname 
+		result = pipe_binary
+		plt.imshow(result)
+		plt.savefig(write_name)
+	# <- Image 
 	#pre_warped_img = image
 	pre_warped_img = pipe_binary
 	img_size = (pre_warped_img.shape[1], pre_warped_img.shape[0])
@@ -344,6 +367,13 @@ while cap.isOpened():
 
 
 	binary_warped = warped_img
+	# Image ->
+	if USE_TEST_IMAGE == True:
+		write_name = outfd + "warped_"+imgname 
+		result = binary_warped
+		plt.imshow(result)
+		plt.savefig(write_name)
+	# <- Image 
 	###  Find Lane
 
 	# Assuming you have created a warped binary image called "binary_warped"
@@ -477,6 +507,13 @@ while cap.isOpened():
 		plt.xlim(0, 1280)
 		plt.ylim(720, 0)
 		plt.show()
+		# Image ->
+		if USE_TEST_IMAGE == True:
+			write_name = outfd + "line_"+imgname 
+			#result = pipe_binary
+			#plt.imshow(result)
+			plt.savefig(write_name)
+		# <- Image 
 
 
 
@@ -559,12 +596,20 @@ while cap.isOpened():
 	# Combine the result with the original image
 	result = cv2.addWeighted(image, 1, newwarp, 0.3, 0)
 	plt.imshow(result)
-	#plt.show()
+	# Image ->
+#	plt.show()
+#	write_name = outfd + "draw_"+imgname 
+#    	result = cv2.cvtColor(result, cv2.COLOR_BGR2RGB)
+#	cv2.imwrite(write_name, result)
+	# <- Image 
+
+	# Video ->
     	displayimage = cv2.cvtColor(result, cv2.COLOR_BGR2RGB)
     	cv2.imshow('window-name',displayimage)
     	cv2.waitKey(50)
 	# write the display frame
         out.write(displayimage)
+	# <- Video
 cap.release()
 out.release()
 cap.destroyAllWindows()
