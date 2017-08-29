@@ -315,7 +315,7 @@ while cap.isOpened():
 	#image = mpimg.imread(img)
 	#cvimage = cv2.imread(img)
     	image = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-    	#image = cv2.undistort(image, mtx, dist, None, None)
+    	image = cv2.undistort(image, mtx, dist, None, None)
 	dir_binary = dir_threshold(image, sobel_kernel=15, thresh=(0.7, 1.3))   
 	mag_binary = mag_thresh(image, sobel_kernel=3, mag_thresh=(30, 100))
 	gradx_binary = abs_sobel_thresh(image, orient='x', thresh_min=20, thresh_max=100)
