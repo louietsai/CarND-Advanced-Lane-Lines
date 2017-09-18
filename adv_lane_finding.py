@@ -466,7 +466,6 @@ while cap.isOpened():
 	print(left_curverad, 'm', right_curverad, 'm')
 	# Example values: 632.1 m    626.2 m
 
-
 	show_curve_line = False
 	if show_curve_line == True:
 		out_img[nonzeroy[left_lane_inds], nonzerox[left_lane_inds]] = [255, 0, 0]
@@ -561,6 +560,22 @@ while cap.isOpened():
 	plt.imshow(result)
 	#plt.show()
     	displayimage = cv2.cvtColor(result, cv2.COLOR_BGR2RGB)
+	# Write some Text
+
+	font                   = cv2.FONT_HERSHEY_SIMPLEX
+	bottomLeftCornerOfText = (10,50)
+	fontScale              = 1
+	fontColor              = (255,255,255)
+	lineType               = 2
+	msg = "left_curverad : " + str(left_curverad) +" , " + "right_curverad : " + str(right_curverad)
+
+	cv2.putText(displayimage,msg, 
+    	bottomLeftCornerOfText, 
+    	font, 
+    	fontScale,
+    	fontColor,
+    	lineType)
+
     	cv2.imshow('window-name',displayimage)
     	cv2.waitKey(50)
 	# write the display frame
