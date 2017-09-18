@@ -414,15 +414,19 @@ while cap.isOpened():
     		if len(good_right_inds) > minpix:        
         		rightx_current = np.int(np.mean(nonzerox[good_right_inds]))
     		#print("leftx and rightx current: ",leftx_current,rightx_current)
-		print(" == leftx leftx_avg rightx rightx_avg : ",leftx_current,leftx_avg,rightx_current,rightx_avg)
+		#print(" == window ,leftx leftx_avg rightx rightx_avg : ",window,leftx_current,leftx_avg,rightx_current,rightx_avg)
 		if (leftx_avg - leftx_current ) > margin_range:
 			leftx_current = leftx_avg
 		if (rightx_current - rightx_avg) > margin_range:
 			rightx_current = rightx_avg
-		print(" === leftx leftx_avg rightx rightx_avg : ",leftx_current,leftx_avg,rightx_current,rightx_avg)
+		#print(" ===== window ,leftx leftx_avg rightx rightx_avg : ",window,leftx_current,leftx_avg,rightx_current,rightx_avg)
 		leftx_list.append(leftx_current)
 		rightx_list.append(rightx_current)
-
+		if window == 1:
+			bottom_leftx = leftx_current
+			bottom_rightx = rightx_current
+			
+	print(" size of lefx, size of rightx , bottom leftx rightx .",len(leftx_list),len(rightx_list),bottom_leftx,bottom_rightx)
 	# Concatenate the arrays of indices
 	left_lane_inds = np.concatenate(left_lane_inds)
 	right_lane_inds = np.concatenate(right_lane_inds)
@@ -465,6 +469,11 @@ while cap.isOpened():
 	# Now our radius of curvature is in meters
 	print(left_curverad, 'm', right_curverad, 'm')
 	# Example values: 632.1 m    626.2 m
+	
+	#### find center
+	bottom_center = ( bottom_leftx + bottom_rightx )/2
+	bottom_midpoint = np.int(histogram.shape[0]/2)
+	right_of_bottom_midpoint_meter = (bottom_center - bottom_midpoint)/100.0
 
 	show_curve_line = False
 	if show_curve_line == True:
@@ -567,9 +576,17 @@ while cap.isOpened():
 	fontScale              = 1
 	fontColor              = (255,255,255)
 	lineType               = 2
-	msg = "left_curverad : " + str(left_curverad) +" , " + "right_curverad : " + str(right_curverad)
+	msg = "left curvature : " + str(left_curverad) +" , " + "right curvature : " + str(right_curverad)
 
 	cv2.putText(displayimage,msg, 
+    	bottomLeftCornerOfText, 
+    	font, 
+    	fontScale,
+    	fontColor,
+    	lineType)
+	msg2 = " vehicle is "+str(right_of_bottom_midpoint_meter) +"m right of center"
+	bottomLeftCornerOfText = (10,100)
+	cv2.putText(displayimage,msg2, 
     	bottomLeftCornerOfText, 
     	font, 
     	fontScale,
