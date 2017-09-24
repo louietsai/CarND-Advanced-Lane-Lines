@@ -378,7 +378,7 @@ while cap.isOpened():
 	#image = mpimg.imread(img)
 	#cvimage = cv2.imread(img)
     	image = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-    	#image = cv2.undistort(image, mtx, dist, None, None)
+    	image = cv2.undistort(image, mtx, dist, None, None)
 	dir_binary = dir_threshold(image, sobel_kernel=15, thresh=(0.7, 1.3))   
 	mag_binary = mag_thresh(image, sobel_kernel=3, mag_thresh=(30, 100))
 	gradx_binary = abs_sobel_thresh(image, orient='x', thresh_min=20, thresh_max=100)
@@ -577,8 +577,8 @@ while cap.isOpened():
 	y_eval = np.max(ploty)
 	print(y_eval)
 	# Define conversions in x and y from pixels space to meters
-	ym_per_pix = (30.0/720) # meters per pixel in y dimension
-	xm_per_pix = (3.7/700) # meters per pixel in x dimension
+	ym_per_pix = (50.0/720) # meters per pixel in y dimension
+	xm_per_pix = (3.7/400) # meters per pixel in x dimension
 	#print(ym_per_pix,xm_per_pix)
 	# Fit new polynomials to x,y in world space
 	left_fit_cr = np.polyfit(lefty*ym_per_pix, leftx*xm_per_pix, 2)
@@ -596,9 +596,14 @@ while cap.isOpened():
 	# Example values: 632.1 m    626.2 m
 	
 	#### find center
+	bottom_y = 720
+	bottom_leftx = left_fit[0]*bottom_y**2 + left_fit[1]*bottom_y + left_fit[2]
+	bottom_rightx = right_fit[0]*bottom_y**2 + right_fit[1]*bottom_y + right_fit[2]
+	#print(" === bottom leftx rightx  ",bottom_leftx,bottom_rightx )
 	bottom_center = ( bottom_leftx + bottom_rightx )/2
 	bottom_midpoint = np.int(histogram.shape[0]/2)
-	right_of_bottom_midpoint_meter = (bottom_center - bottom_midpoint)/100.0
+	print(" - bottom_midpoint",bottom_midpoint)
+	right_of_bottom_midpoint_meter = (bottom_center - bottom_midpoint)*xm_per_pix
 
 	show_curve_line = False
 	if show_curve_line == True:
