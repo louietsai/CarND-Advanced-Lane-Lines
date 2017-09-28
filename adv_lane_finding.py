@@ -454,14 +454,20 @@ while cap.isOpened():
 		rightx_current = rightx_avg
 	print(" --- leftx leftx_avg rightx rightx_avg : ",leftx_current,leftx_avg,rightx_current,rightx_avg)
 	# Create empty lists to receive left and right lane pixel indices
+	import copy
+	if left_lane_inds != []:
+		print(" len left land inds , len prev inds",len(left_lane_inds),len(left_lane_inds_prev))
+		left_lane_inds_prev = copy.copy(left_lane_inds)
+	if right_lane_inds != []:
+		print(" len right land inds , len prev inds",len(right_lane_inds),len(right_lane_inds_prev))
+		right_lane_inds_prev = copy.copy(right_lane_inds)
 	left_lane_inds = []
 	right_lane_inds = []
 
+	invalid_left_windows = []
+	invalid_right_windows = []
 	# Step through the windows one by one
-	err_msg_leftx = ""
-	err_msg_rightx = ""
-	err_msg_left_goodind = ""
-	err_msg_right_goodind = ""
+	err_msg=""
 	for window in range(nwindows):
     		# Identify window boundaries in x and y (and right and left)
     		win_y_low = binary_warped.shape[0] - (window+1)*window_height
@@ -475,25 +481,21 @@ while cap.isOpened():
     		if len(good_left_inds) > minpix:
         		leftx_current = np.int(np.mean(nonzerox[good_left_inds]))
 		else:
-			err_msg_left_goodind += " Err w:"+str(window)+" l inds num:"+ str(len(good_left_inds))
 			win_xleft_low, win_xleft_high, win_xright_low,win_xright_high,good_left_inds,good_right_inds = check_good_inds(leftx_list[-1],rightx_list[-1],margin,win_y_low,win_y_high,0,rightx_fit_cr)
     			if len(good_left_inds) > minpix:
         			leftx_current = np.int(np.mean(nonzerox[good_left_inds]))
-			#elif left_lane_inds_prev != []:
-			#	print(" ******* use previous left_lane_inds ")#,left_lane_inds_prev[window])
-			#	good_left_inds = left_lane_inds_prev[window]
+			else:
+				invalid_left_windows.append(window)
 			
     		if len(good_right_inds) > minpix:        
         		rightx_current = np.int(np.mean(nonzerox[good_right_inds]))
 		else:
-			err_msg_right_goodind += " Err w:"+str(window)+" r inds num:"+ str(len(good_right_inds))
 			win_xleft_low, win_xleft_high, win_xright_low,win_xright_high,good_left_inds,good_right_inds = check_good_inds(leftx_list[-1],rightx_list[-1],margin,win_y_low,win_y_high,leftx_fit_cr,0)
     			if len(good_right_inds) > minpix:        
         			rightx_current = np.int(np.mean(nonzerox[good_right_inds]))
-			#elif right_lane_inds_prev != []:
-			#	print("use previous right_lane_inds ")#,right_lane_inds_prev)
-			#	good_right_inds = right_lane_inds_prev[window]
-        		#rightx_current = np.int(np.mean(nonzerox[good_right_inds]))
+			else:
+				invalid_right_windows.append(window)
+
 		print("######### window minpix ,len of good_left_inds and good_right_inds",window,minpix,len(good_left_inds),len(good_right_inds))
     		# Draw the windows on the visualization image
     		cv2.rectangle(out_img,(win_xleft_low,win_y_low),(win_xleft_high,win_y_high),(0,255,0), 2) 
@@ -513,10 +515,6 @@ while cap.isOpened():
 			bottom_leftx = leftx_current
 			bottom_rightx = rightx_current
 			
-	import copy
-	left_lane_inds_prev = copy.copy(left_lane_inds)
-	right_lane_inds_prev = copy.copy(right_lane_inds)
-
 	nwindows_img = out_img
 	print(" size of lefx, size of rightx , bottom leftx rightx .",len(leftx_list),len(rightx_list),bottom_leftx,bottom_rightx)
 	# Concatenate the arrays of indices
@@ -559,8 +557,15 @@ while cap.isOpened():
 	righty = nonzeroy[right_lane_inds] 
 	#print("left line : ", len(leftx),len(lefty),leftx,lefty)
 	# Fit a second order polynomial to each
-	left_fit = np.polyfit(lefty, leftx, 2)
-	right_fit = np.polyfit(righty, rightx, 2)
+	if len(invalid_left_windows) == 0:#nwindows/3:
+		err_msg += "Left Lane invalid windows number : "+str(len(invalid_left_windows))
+		left_fit = np.polyfit(lefty, leftx, 2)
+	if len(invalid_right_windows) == 0:#nwindows/3:
+		err_msg += "Right Lane invalid windows number : "+str(len(invalid_right_windows))
+		right_fit = np.polyfit(righty, rightx, 2)
+	print(err_msg)
+	#left_fit = np.polyfit(lefty, leftx, 2)
+	#right_fit = np.polyfit(righty, rightx, 2)
 	print("\n np polyfit \n")
 	print(left_fit)
 	print(right_fit)
@@ -698,7 +703,7 @@ while cap.isOpened():
     	fontScale,
     	fontColor,
     	lineType)
-	msg2 = " vehicle is "+str(right_of_bottom_midpoint_meter) +"m right of center"
+	msg2 = " vehicle is "+str(right_of_bottom_midpoint_meter) +"m right of center"+err_msg
 	bottomLeftCornerOfText = (10,100)
 	cv2.putText(displayimage,msg2, 
     	bottomLeftCornerOfText, 
