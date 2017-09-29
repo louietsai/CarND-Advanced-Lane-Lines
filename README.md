@@ -22,6 +22,8 @@ The goals / steps of this project are the following:
 [image5]: ./output_images/video_snapshot.png  "Fit Visual"
 [image6]: ./output_images/video_snapshot_v2.png "v2 Output"
 [image7]: ./output_images/video_snapshot_v4.png "v4 Output"
+[image8]: ./output_images/v4_search_windows.png "v4_w Output"
+[image9]: ./output_images/v5_search_windows.png "v5_w Output"
 [video1]: ./project_video_output_v4.avi "Video"
 
 ## [Rubric](https://review.udacity.com/#!/rubrics/571/view) Points
@@ -112,25 +114,33 @@ First, we only caculate the new curve if there is no invalid sliding window resu
 ```
 
 Second , we keep right and left search windows within a average range, and will adjust right or left window position according the previous searching windows condition.
+We also enlarge the search windows range if there is any invalid search window in this frame.
 ```python
 	current_window_distance = win_xright_low - win_xleft_high
 	win_dist_diff = current_window_distance - bottom_window_distance
 	if abs(win_dist_diff) > margin:
 		if invalid_left_windows_number > 0:
-			win_xleft_low += win_dist_diff
+			win_xleft_low += win_dist_diff - margin*2/5
 			win_xleft_high += win_dist_diff
 		elif invalid_right_windows_number > 0:
 			win_xright_low += win_dist_diff
-			win_xright_high += win_dist_diff  	
+			win_xright_high += win_dist_diff + margin*2/5	
 		else:
 			win_xright_low += win_dist_diff/2
-			win_xright_high += win_dist_diff/2 	
-			win_xleft_low += win_dist_diff/2
+			win_xright_high += win_dist_diff/2 + margin*2/5		
+			win_xleft_low += win_dist_diff/2 - margin*2/5
 			win_xleft_high += win_dist_diff/2
 			print(" !!!!! Issue of right or left window position  delta:",current_window_distance - 			
                 
 ```
+here is a picture if we don't enlarge search window range when there is a invalid search window in this frame.
+we may miss some valid point due to small search window range.
 
+![alt text][image8]
+
+when we enlarge search window range in above case, we would find those valid point like below diagram.
+
+![alt text][image9]
 
 Moreover, I gave an initial average for both left and right lane position.
 ```python
