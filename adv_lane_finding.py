@@ -278,36 +278,112 @@ def warp(img,src,dst):
 	Minv = cv2.getPerspectiveTransform(dst, src)
 	warped = cv2.warpPerspective(img, M,(1280,720))
 	return warped, M , Minv
+
+# Process pipeline with aditional information
+def process_image_ex(img,img2,img3):
+    #undist = # function that returns undistorted image
+    #img_binary, img_stack = # funcation that returns binary image (img_binary) and image with combination of all thresholds images (img_stack) - it will be displayed near process frame later
+    #warped, Minv = # function that returns birds-eye view
+    #lanes, ploty, left_fitx, right_fitx, left_curverad, right_curverad, center_dist = # function that detects lines and lane
+    output = img# function that warp image back to perspective view
+
+    output1 = cv2.resize(img2,(640, 360), interpolation = cv2.INTER_AREA)
+    output2 = cv2.resize(img3,(640, 360), interpolation = cv2.INTER_AREA)
+
+    # Create an array big enough to hold both images next to each other.
+    vis = np.zeros([720, 1280+640, 3],dtype=np.uint8)
+    #vis = np.zeros((720, 1280, 3))
+
+    # Copy both images into the composed image.
+    vis[:720, :1280,:] = output
+    vis[:360, 1280:1920,:] = output1
+    vis[360:720, 1280:1920,:] = output2
+    return vis
+
+def check_good_inds(leftx_current,rightx_current,margin,win_y_low,win_y_high,leftx_cr,rightx_cr,invalid_left_windows_number,invalid_right_windows_number,bottom_leftx,bottom_rightx):
+	err_msg = ''
+	# right lane will refer to left cr, because it may be wrong now
+	if leftx_cr > 0:
+		xright_sign =1
+	elif leftx_cr <0:
+		xright_sign =-1
+	else:
+		xright_sign =0
+
+	if rightx_cr > 0:
+		xleft_sign =1
+	elif rightx_cr <0:
+		xleft_sign =-1
+	else:
+		xleft_sign =0
+
+	# check the distance between bottom left and right window
+	bottom_window_distance = 200 #(bottom_rightx - margin + xright_sign*margin/2) - (bottom_leftx + margin + xleft_sign*margin/2)
+
+	win_xleft_low = leftx_current - margin + xleft_sign*margin/2
+    	win_xleft_high = leftx_current + margin + xleft_sign*margin/2
+    	win_xright_low = rightx_current - margin + xright_sign*margin/2
+    	win_xright_high = rightx_current + margin + xright_sign*margin/2
+
+	current_window_distance = win_xright_low - win_xleft_high
+	win_dist_diff = current_window_distance - bottom_window_distance
+	if abs(win_dist_diff) > margin:
+		if invalid_left_windows_number > 0:
+			#if win_dist_diff < -1*margin/2:
+			#	win_dist_diff = -1*margin/2 
+			win_xleft_low += win_dist_diff
+			win_xleft_high += win_dist_diff
+			print(" !!!!! Issue of left window position  delta:",current_window_distance - bottom_window_distance,current_window_distance,bottom_window_distance)
+			#err_msg += 'win left win_dist_diff '+str(win_dist_diff)+' win_y_low : '+str(win_y_low)
+		elif invalid_right_windows_number > 0:
+			win_xright_low += win_dist_diff
+			win_xright_high += win_dist_diff  	
+			print(" !!!!! Issue of right window position  delta:",current_window_distance - bottom_window_distance,current_window_distance,bottom_window_distance)
+			#err_msg += 'win right win_dist_diff '+str(win_dist_diff)+' win_y_low : '+str(win_y_low)
+		else:
+			win_xright_low += win_dist_diff/2
+			win_xright_high += win_dist_diff/2 	
+			win_xleft_low += win_dist_diff/2
+			win_xleft_high += win_dist_diff/2
+			print(" !!!!! Issue of right or left window position  delta:",current_window_distance - bottom_window_distance,current_window_distance,bottom_window_distance)
+			#err_msg += 'win right or left bot dist '+str(bottom_window_distance)+' curr dist '+str(current_window_distance)+' win_y_low : '+str(win_y_low)
+			
+
+    	good_left_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) & (nonzerox >= win_xleft_low) & (nonzerox < win_xleft_high)).nonzero()[0]
+    	good_right_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) & (nonzerox >= win_xright_low) & (nonzerox < win_xright_high)).nonzero()[0]
+	return win_xleft_low, win_xleft_high, win_xright_low,win_xright_high,good_left_inds,good_right_inds,err_msg
+
  
 # Read in an image and grayscale it
 #image = mpimg.imread('test_images/straight_lines1.jpg')
 #image = mpimg.imread('test_images/straight_lines2.jpg')
 #image = mpimg.imread('test_images/test2.jpg')
 
+#images = glob.glob('test_images/*.jpg')
 #for img in images:
 leftx_list=[]
 rightx_list=[]
+left_lane_inds = []
+right_lane_inds = []
+left_lane_inds_prev = []
+right_lane_inds_prev = []
 margin_range = 150#150
 cap = cv2.VideoCapture('project_video.mp4')
-images = glob.glob('test_images/*.jpg')
 # Define the codec and create VideoWriter object
 #out = cv2.VideoWriter('project_video_output.avi', -1, 20.0, (1280,720))
-frame_width=1280
+do_process_image_ex = True
+if do_process_image_ex == True:
+	frame_width=1280 + 640
+else:
+	frame_width=1280
 frame_height=720
 leftx_list.append(margin_range*4)
 rightx_list.append(frame_width - margin_range*4)
 fourcc = cv2.cv.CV_FOURCC(*'MPEG')
 out = cv2.VideoWriter('project_video_output.avi',fourcc, 30, (frame_width,frame_height))
 count = 0
-USE_TEST_IMAGE = False
-# Image ->
-#for img in images:
-#	print(img)
-#	imgname = img.split('/')[1]
-#	outfd = "output_images/"
-#	print(imgname)
-# <- Image
-# Video ->
+leftx_fit_cr=0
+rightx_fit_cr=0
 while cap.isOpened():
 	print("before cap.read")
     	ret,frame = cap.read()
@@ -315,23 +391,16 @@ while cap.isOpened():
 		print("ret is not 1 for cap.read")
 		#continue
 		break
+    	#cv2.imshow('window-name',frame)
+    	#cv2.imwrite("frame%d.jpg" % count, frame)
     	count = count + 1
     	if cv2.waitKey(10) & 0xFF == ord('q'):
         	break
+	#print(img)
+	#image = mpimg.imread(img)
+	#cvimage = cv2.imread(img)
     	image = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-	# <- Video
-	# Image ->
-#	image = mpimg.imread(img)
-	# <- Image
-
     	image = cv2.undistort(image, mtx, dist, None, None)
-	# Image ->
-	if USE_TEST_IMAGE == True:
-		write_name = outfd + "undist_"+imgname 
-		result = image
-    		result = cv2.cvtColor(result, cv2.COLOR_BGR2RGB)
-		cv2.imwrite(write_name, result)
-	# <- Image 
 	dir_binary = dir_threshold(image, sobel_kernel=15, thresh=(0.7, 1.3))   
 	mag_binary = mag_thresh(image, sobel_kernel=3, mag_thresh=(30, 100))
 	gradx_binary = abs_sobel_thresh(image, orient='x', thresh_min=20, thresh_max=100)
@@ -342,13 +411,6 @@ while cap.isOpened():
 	combined = np.zeros_like(dir_binary)
 	combined[((gradx_binary == 1) & (grady_binary == 1)) | ((mag_binary == 1) & (dir_binary == 1))] = 1
 
-	# Image ->
-	if USE_TEST_IMAGE == True:
-		write_name = outfd + "binary_"+imgname 
-		result = pipe_binary
-		plt.imshow(result)
-		plt.savefig(write_name)
-	# <- Image 
 	#pre_warped_img = image
 	pre_warped_img = pipe_binary
 	img_size = (pre_warped_img.shape[1], pre_warped_img.shape[0])
@@ -367,13 +429,6 @@ while cap.isOpened():
 
 
 	binary_warped = warped_img
-	# Image ->
-	if USE_TEST_IMAGE == True:
-		write_name = outfd + "warped_"+imgname 
-		result = binary_warped
-		plt.imshow(result)
-		plt.savefig(write_name)
-	# <- Image 
 	###  Find Lane
 
 	# Assuming you have created a warped binary image called "binary_warped"
@@ -391,6 +446,10 @@ while cap.isOpened():
 
 	# Choose the number of sliding windows
 	nwindows = 9
+	# Set the width of the windows +/- margin
+	margin = 100
+	# Set minimum number of pixels found to recenter window
+	minpix = 50
 	# Set height of windows
 	window_height = np.int(binary_warped.shape[0]/nwindows)
 	# Identify the x and y positions of all nonzero pixels in the image
@@ -400,6 +459,14 @@ while cap.isOpened():
 	# Current positions to be updated for each window
 	leftx_current = leftx_base
 	rightx_current = rightx_base
+	bottom_leftx = leftx_current
+	bottom_rightx = rightx_current
+	if len(leftx_list) > 9:
+		if abs(leftx_current - leftx_list[-9]) > minpix:
+			leftx_current = leftx_list[-9]
+	if len(rightx_list) > 9:
+		if abs(rightx_current - rightx_list[-9]) > minpix:
+			rightx_current = rightx_list[-9]
 	leftx_list.append(leftx_current)
 	rightx_list.append(rightx_current)
  	leftx_avg=np.int(np.mean(leftx_list))	
@@ -410,65 +477,119 @@ while cap.isOpened():
 	if (rightx_current - rightx_avg) > margin_range:
 		rightx_current = rightx_avg
 	print(" --- leftx leftx_avg rightx rightx_avg : ",leftx_current,leftx_avg,rightx_current,rightx_avg)
-	# Set the width of the windows +/- margin
-	margin = 100
-	# Set minimum number of pixels found to recenter window
-	minpix = 50
 	# Create empty lists to receive left and right lane pixel indices
+	import copy
+	if left_lane_inds != []:
+		print(" len left land inds , len prev inds",len(left_lane_inds),len(left_lane_inds_prev))
+		left_lane_inds_prev = copy.copy(left_lane_inds)
+	if right_lane_inds != []:
+		print(" len right land inds , len prev inds",len(right_lane_inds),len(right_lane_inds_prev))
+		right_lane_inds_prev = copy.copy(right_lane_inds)
 	left_lane_inds = []
 	right_lane_inds = []
 
+	invalid_left_windows = []
+	invalid_right_windows = []
 	# Step through the windows one by one
+	err_msg=""
 	for window in range(nwindows):
     		# Identify window boundaries in x and y (and right and left)
     		win_y_low = binary_warped.shape[0] - (window+1)*window_height
     		win_y_high = binary_warped.shape[0] - window*window_height
-    		win_xleft_low = leftx_current - margin
-    		win_xleft_high = leftx_current + margin
-    		win_xright_low = rightx_current - margin
-    		win_xright_high = rightx_current + margin
-    		# Draw the windows on the visualization image
-    		cv2.rectangle(out_img,(win_xleft_low,win_y_low),(win_xleft_high,win_y_high),(0,255,0), 2) 
-    		cv2.rectangle(out_img,(win_xright_low,win_y_low),(win_xright_high,win_y_high),(0,255,0), 2) 
-    		# Identify the nonzero pixels in x and y within the window
-    		good_left_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) & (nonzerox >= win_xleft_low) & (nonzerox < win_xleft_high)).nonzero()[0]
-    		good_right_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) & (nonzerox >= win_xright_low) & (nonzerox < win_xright_high)).nonzero()[0]
-    		#print("good_left_inds",good_left_inds)
-    		#print("good_right_inds",good_right_inds)
+
+
+		win_xleft_low, win_xleft_high, win_xright_low,win_xright_high,good_left_inds,good_right_inds,err_message = check_good_inds(leftx_current,rightx_current,margin,win_y_low,win_y_high,0,0,len(invalid_left_windows),len(invalid_right_windows),bottom_leftx,bottom_rightx)
+		err_msg += ' '+err_message+ ' '
     		# Append these indices to the lists
-    		left_lane_inds.append(good_left_inds)
-    		right_lane_inds.append(good_right_inds)
+		#print("######### window minpix ,len of good_left_inds and good_right_inds",window,minpix,len(good_left_inds),len(good_right_inds))
     		# If you found > minpix pixels, recenter next window on their mean position
     		if len(good_left_inds) > minpix:
         		leftx_current = np.int(np.mean(nonzerox[good_left_inds]))
+		else:
+			win_xleft_low, win_xleft_high, win_xright_low,win_xright_high,good_left_inds,good_right_inds,err_message = check_good_inds(leftx_list[-1],rightx_list[-1],margin,win_y_low,win_y_high,0,rightx_fit_cr,len(invalid_left_windows),len(invalid_right_windows),bottom_leftx,bottom_rightx)
+			err_msg += ' '+err_message+ ' '
+    			if len(good_left_inds) > minpix:
+        			leftx_current = np.int(np.mean(nonzerox[good_left_inds]))
+			else:
+				invalid_left_windows.append(window)
+			
     		if len(good_right_inds) > minpix:        
         		rightx_current = np.int(np.mean(nonzerox[good_right_inds]))
-    		#print("leftx and rightx current: ",leftx_current,rightx_current)
-		print(" == leftx leftx_avg rightx rightx_avg : ",leftx_current,leftx_avg,rightx_current,rightx_avg)
-		if (leftx_avg - leftx_current ) > margin_range:
-			leftx_current = leftx_avg
-		if (rightx_current - rightx_avg) > margin_range:
-			rightx_current = rightx_avg
-		print(" === leftx leftx_avg rightx rightx_avg : ",leftx_current,leftx_avg,rightx_current,rightx_avg)
+		else:
+			win_xleft_low, win_xleft_high, win_xright_low,win_xright_high,good_left_inds,good_right_inds,err_message = check_good_inds(leftx_list[-1],rightx_list[-1],margin,win_y_low,win_y_high,leftx_fit_cr,0,len(invalid_left_windows),len(invalid_right_windows),bottom_leftx,bottom_rightx)
+			err_msg += ' '+err_message+ ' '
+    			if len(good_right_inds) > minpix:        
+        			rightx_current = np.int(np.mean(nonzerox[good_right_inds]))
+			else:
+				invalid_right_windows.append(window)
+
+		print("######### window minpix ,len of good_left_inds and good_right_inds",window,minpix,len(good_left_inds),len(good_right_inds))
+    		# Draw the windows on the visualization image
+    		cv2.rectangle(out_img,(win_xleft_low,win_y_low),(win_xleft_high,win_y_high),(0,255,0), 2) 
+    		cv2.rectangle(out_img,(win_xright_low,win_y_low),(win_xright_high,win_y_high),(0,255,0), 2) 
+    		left_lane_inds.append(good_left_inds)
+    		right_lane_inds.append(good_right_inds)
 		leftx_list.append(leftx_current)
 		rightx_list.append(rightx_current)
-
+			
+	nwindows_img = out_img
+	print(" size of lefx, size of rightx , bottom leftx rightx .",len(leftx_list),len(rightx_list),bottom_leftx,bottom_rightx)
 	# Concatenate the arrays of indices
+	print(" before concatenate left lane inds len , right lane inds len",len(left_lane_inds),len(right_lane_inds))
 	left_lane_inds = np.concatenate(left_lane_inds)
 	right_lane_inds = np.concatenate(right_lane_inds)
-
 	# Extract left and right line pixel positions
+	print(" left lane inds len , right lane inds len",len(left_lane_inds),len(right_lane_inds))
+	print(" left lane inds last , right lane inds last",left_lane_inds[-1],right_lane_inds[-1])
+	print(" nonzerox len, nonzeroy len",len(nonzerox),len(nonzeroy))
+	rcount =0
+	max_rcount = 0 
+	#new_right_lane_inds=[]
+	#new_left_lane_inds=[]
+	for i in right_lane_inds:
+		if i > len(nonzerox):
+			#new_right_lane_inds = np.delete(right_lane_inds ,rcount)
+			print(rcount,i)
+			if rcount > max_rcount:
+				max_rcount = rcount
+		rcount+=1
+	#print(" right lane rcount",rcount)
+	lcount =0
+	max_lcount = 0 
+	for i in left_lane_inds:
+		if i > len(nonzerox):
+			#new_left_lane_inds = np.delete(left_lane_inds ,rcount)
+			print(lcount,i)
+			if lcount > max_lcount:
+				max_lcount = lcount
+		lcount+=1
+	
+	#print(" left lane rcount",lcount)
+		#print i
+	left_lane_inds = left_lane_inds[max_lcount+1:]
+	right_lane_inds = right_lane_inds[max_rcount+1:]
 	leftx = nonzerox[left_lane_inds]
 	lefty = nonzeroy[left_lane_inds] 
 	rightx = nonzerox[right_lane_inds]
 	righty = nonzeroy[right_lane_inds] 
 	#print("left line : ", len(leftx),len(lefty),leftx,lefty)
 	# Fit a second order polynomial to each
-	left_fit = np.polyfit(lefty, leftx, 2)
-	right_fit = np.polyfit(righty, rightx, 2)
+	if len(invalid_left_windows) == 0:#nwindows/3:
+		left_fit = np.polyfit(lefty, leftx, 2)
+	else:
+		err_msg += "Left Lane invalid windows number : "+str(len(invalid_left_windows))
+		
+	if len(invalid_right_windows) == 0:#nwindows/3:
+		right_fit = np.polyfit(righty, rightx, 2)
+	else:
+		err_msg += "Right Lane invalid windows number : "+str(len(invalid_right_windows))
+	print(err_msg)
+	#left_fit = np.polyfit(lefty, leftx, 2)
+	#right_fit = np.polyfit(righty, rightx, 2)
 	print("\n np polyfit \n")
 	print(left_fit)
 	print(right_fit)
+	print(left_fit - right_fit)
 	# Generate x and y values for plotting
 	ploty = np.linspace(0, binary_warped.shape[0]-1, binary_warped.shape[0] )
 	left_fitx = left_fit[0]*ploty**2 + left_fit[1]*ploty + left_fit[2]
@@ -477,14 +598,13 @@ while cap.isOpened():
 	#print(left_fitx)
 	#print(right_fitx)
 
-
 	#### find curve
 
 	y_eval = np.max(ploty)
 	print(y_eval)
 	# Define conversions in x and y from pixels space to meters
-	ym_per_pix = (30.0/720) # meters per pixel in y dimension
-	xm_per_pix = (3.7/700) # meters per pixel in x dimension
+	ym_per_pix = (50.0/720) # meters per pixel in y dimension
+	xm_per_pix = (3.7/400) # meters per pixel in x dimension
 	#print(ym_per_pix,xm_per_pix)
 	# Fit new polynomials to x,y in world space
 	left_fit_cr = np.polyfit(lefty*ym_per_pix, leftx*xm_per_pix, 2)
@@ -492,10 +612,24 @@ while cap.isOpened():
 	# Calculate the new radii of curvature
 	left_curverad = ((1 + (2*left_fit_cr[0]*y_eval*ym_per_pix + left_fit_cr[1])**2)**1.5) / np.absolute(2*left_fit_cr[0])
 	right_curverad = ((1 + (2*right_fit_cr[0]*y_eval*ym_per_pix + right_fit_cr[1])**2)**1.5) / np.absolute(2*right_fit_cr[0])
+	cr_msg = "left fit cr : " + str(left_fit_cr[0]) + "right fit cr : "+str(right_fit_cr[0])
+	leftx_fit_cr=left_fit_cr[0]
+	rightx_fit_cr=right_fit_cr[0]
+	#left_curverad = ((1 + (2*left_fit_cr[0]*y_eval*ym_per_pix + left_fit_cr[1])**2)**1.5) / 2*left_fit_cr[0]
+	#right_curverad = ((1 + (2*right_fit_cr[0]*y_eval*ym_per_pix + right_fit_cr[1])**2)**1.5) / 2*right_fit_cr[0]
 	# Now our radius of curvature is in meters
 	print(left_curverad, 'm', right_curverad, 'm')
 	# Example values: 632.1 m    626.2 m
-
+	
+	#### find center
+	bottom_y = 720
+	bottom_leftx = left_fit[0]*bottom_y**2 + left_fit[1]*bottom_y + left_fit[2]
+	bottom_rightx = right_fit[0]*bottom_y**2 + right_fit[1]*bottom_y + right_fit[2]
+	#print(" === bottom leftx rightx  ",bottom_leftx,bottom_rightx )
+	bottom_center = ( bottom_leftx + bottom_rightx )/2
+	bottom_midpoint = np.int(histogram.shape[0]/2)
+	print(" - bottom_midpoint",bottom_midpoint)
+	right_of_bottom_midpoint_meter = (bottom_center - bottom_midpoint)*xm_per_pix
 
 	show_curve_line = False
 	if show_curve_line == True:
@@ -507,13 +641,6 @@ while cap.isOpened():
 		plt.xlim(0, 1280)
 		plt.ylim(720, 0)
 		plt.show()
-		# Image ->
-		if USE_TEST_IMAGE == True:
-			write_name = outfd + "line_"+imgname 
-			#result = pipe_binary
-			#plt.imshow(result)
-			plt.savefig(write_name)
-		# <- Image 
 
 
 
@@ -522,51 +649,35 @@ while cap.isOpened():
 	# Assume you now have a new warped binary image 
 	# from the next frame of video (also called "binary_warped")
 	# It's now much easier to find line pixels!
-	nonzero = binary_warped.nonzero()
-	nonzeroy = np.array(nonzero[0])
-	nonzerox = np.array(nonzero[1])
-	margin = 100
-	left_lane_inds = ((nonzerox > (left_fit[0]*(nonzeroy**2) + left_fit[1]*nonzeroy + left_fit[2] - margin)) & (nonzerox < (left_fit[0]*(nonzeroy**2) + left_fit[1]*nonzeroy + left_fit[2] + margin))) 
-	right_lane_inds = ((nonzerox > (right_fit[0]*(nonzeroy**2) + right_fit[1]*nonzeroy + right_fit[2] - margin)) & (nonzerox < (right_fit[0]*(nonzeroy**2) + right_fit[1]*nonzeroy + right_fit[2] + margin)))  
-
-	# Again, extract left and right line pixel positions
-	leftx = nonzerox[left_lane_inds]
-	lefty = nonzeroy[left_lane_inds] 
-	rightx = nonzerox[right_lane_inds]
-	righty = nonzeroy[right_lane_inds]
-	# Fit a second order polynomial to each
-	left_fit = np.polyfit(lefty, leftx, 2)
-	right_fit = np.polyfit(righty, rightx, 2)
-	# Generate x and y values for plotting
-	ploty = np.linspace(0, binary_warped.shape[0]-1, binary_warped.shape[0] )
-	left_fitx = left_fit[0]*ploty**2 + left_fit[1]*ploty + left_fit[2]
-	right_fitx = right_fit[0]*ploty**2 + right_fit[1]*ploty + right_fit[2]
-
 
 
 	# Vistualize it
 	# Create an image to draw on and an image to show the selection window
+	#show_curve_line_noslide = False
+	#if show_curve_line_noslide == True:
+	out_img = np.dstack((binary_warped, binary_warped, binary_warped))*255
+	window_img = np.zeros_like(out_img)
+	# Color in left and right line pixels
+	out_img[nonzeroy[left_lane_inds], nonzerox[left_lane_inds]] = [255, 0, 0]
+	out_img[nonzeroy[right_lane_inds], nonzerox[right_lane_inds]] = [0, 0, 255]
+
+	# Generate a polygon to illustrate the search window area
+	# And recast the x and y points into usable format for cv2.fillPoly()
+	left_line_window1 = np.array([np.transpose(np.vstack([left_fitx-margin, ploty]))])
+	left_line_window2 = np.array([np.flipud(np.transpose(np.vstack([left_fitx+margin, ploty])))])
+	left_line_pts = np.hstack((left_line_window1, left_line_window2))
+	right_line_window1 = np.array([np.transpose(np.vstack([right_fitx-margin, ploty]))])
+	right_line_window2 = np.array([np.flipud(np.transpose(np.vstack([right_fitx+margin, ploty])))])
+	right_line_pts = np.hstack((right_line_window1, right_line_window2))
+
+	# Draw the lane onto the warped blank image
+	cv2.fillPoly(window_img, np.int_([left_line_pts]), (0,255, 0))
+	cv2.fillPoly(window_img, np.int_([right_line_pts]), (0,255, 0))
+	result = cv2.addWeighted(out_img, 1, window_img, 0.3, 0)
+	fitx_img = result
+
 	show_curve_line_noslide = False
 	if show_curve_line_noslide == True:
-		out_img = np.dstack((binary_warped, binary_warped, binary_warped))*255
-		window_img = np.zeros_like(out_img)
-		# Color in left and right line pixels
-		out_img[nonzeroy[left_lane_inds], nonzerox[left_lane_inds]] = [255, 0, 0]
-		out_img[nonzeroy[right_lane_inds], nonzerox[right_lane_inds]] = [0, 0, 255]
-
-		# Generate a polygon to illustrate the search window area
-		# And recast the x and y points into usable format for cv2.fillPoly()
-		left_line_window1 = np.array([np.transpose(np.vstack([left_fitx-margin, ploty]))])
-		left_line_window2 = np.array([np.flipud(np.transpose(np.vstack([left_fitx+margin, ploty])))])
-		left_line_pts = np.hstack((left_line_window1, left_line_window2))
-		right_line_window1 = np.array([np.transpose(np.vstack([right_fitx-margin, ploty]))])
-		right_line_window2 = np.array([np.flipud(np.transpose(np.vstack([right_fitx+margin, ploty])))])
-		right_line_pts = np.hstack((right_line_window1, right_line_window2))
-
-		# Draw the lane onto the warped blank image
-		cv2.fillPoly(window_img, np.int_([left_line_pts]), (0,255, 0))
-		cv2.fillPoly(window_img, np.int_([right_line_pts]), (0,255, 0))
-		result = cv2.addWeighted(out_img, 1, window_img, 0.3, 0)
 		plt.imshow(result)
 		plt.plot(left_fitx, ploty, color='yellow')
 		plt.plot(right_fitx, ploty, color='yellow')
@@ -596,20 +707,40 @@ while cap.isOpened():
 	# Combine the result with the original image
 	result = cv2.addWeighted(image, 1, newwarp, 0.3, 0)
 	plt.imshow(result)
-	# Image ->
-#	plt.show()
-#	write_name = outfd + "draw_"+imgname 
-#    	result = cv2.cvtColor(result, cv2.COLOR_BGR2RGB)
-#	cv2.imwrite(write_name, result)
-	# <- Image 
-
-	# Video ->
+	#plt.show()
     	displayimage = cv2.cvtColor(result, cv2.COLOR_BGR2RGB)
+	# Write some Text
+
+	font                   = cv2.FONT_HERSHEY_SIMPLEX
+	bottomLeftCornerOfText = (10,50)
+	fontScale              = 1
+	fontColor              = (255,255,255)
+	lineType               = 2
+	msg = "left curvature : " + str(left_curverad) +" , " + "right curvature : " + str(right_curverad)
+
+	cv2.putText(displayimage,msg, 
+    	bottomLeftCornerOfText, 
+    	font, 
+    	fontScale,
+    	fontColor,
+    	lineType)
+	msg2 = " vehicle is "+str(right_of_bottom_midpoint_meter) +"m right of center"+err_msg
+	bottomLeftCornerOfText = (10,100)
+	cv2.putText(displayimage,msg2, 
+    	bottomLeftCornerOfText, 
+    	font, 
+    	fontScale,
+    	fontColor,
+    	lineType)
+
+
+	if do_process_image_ex == True:
+		displayimage = process_image_ex(displayimage,nwindows_img,fitx_img)
+    	#cv2.imshow('window-name',displayimage)
     	cv2.imshow('window-name',displayimage)
     	cv2.waitKey(50)
 	# write the display frame
         out.write(displayimage)
-	# <- Video
 cap.release()
 out.release()
 cap.destroyAllWindows()
