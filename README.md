@@ -19,9 +19,10 @@ The goals / steps of this project are the following:
 [image2_1]: ./output_images/undist_test2.jpg "Road Transformed"
 [image3]: ./output_images/binary_test2.jpg "Binary Example"
 [image4]: ./output_images/warped_test2.jpg "Warp Example"
-[image5]: ./output_images/line_test2.jpg  "Fit Visual"
-[image6]: ./output_images/draw_test2.jpg "Output"
-[video1]: ./project_video_output.avi "Video"
+[image5]: ./output_images/video_snapshot.png  "Fit Visual"
+[image6]: ./output_images/video_snapshot_v2.png "v2 Output"
+[image7]: ./output_images/video_snapshot_v4.png "v4 Output"
+[video1]: ./project_video_output_v4.avi "Video"
 
 ## [Rubric](https://review.udacity.com/#!/rubrics/571/view) Points
 
@@ -91,23 +92,45 @@ warped image :
 
 #### 4. Describe how (and identify where in your code) you identified lane-line pixels and fit their positions with a polynomial?
 
-Then I did windows sliding  and historgram to fit my lane lines with a 2nd order polynomial kinda like this at line #377 through line #478:
+Then I did windows sliding  and historgram to fit my lane lines with a 2nd order polynomial kinda like this at line #432 through line #687:
 
 ![alt text][image5]
 
 I found that my detected lane lines may be wrong and detected to another lane line or the edge of the highway.
-I keep caculating the left and right lane position, so I will use the average instead of some wrong number if the number has >150 difference.
+
+
+![alt text][image6]
+
+First, we only caculate the new curve if there is no invalid sliding window result which mean enough good indidation points
 ```python
-leftx_list.append(leftx_current)
-rightx_list.append(rightx_current)
-leftx_avg=np.int(np.mean(leftx_list))
-rightx_avg=np.int(np.mean(rightx_list))
-if (leftx_avg - leftx_current ) > margin_range:
-    leftx_current = leftx_avg
-if (rightx_current - rightx_avg) > margin_range:
-    rightx_current = rightx_avg
+	if len(invalid_left_windows) == 0:
+		left_fit = np.polyfit(lefty, leftx, 2)
+	
+	if len(invalid_right_windows) == 0:
+		right_fit = np.polyfit(righty, rightx, 2)
                 
 ```
+
+Second , we keep right and left search windows within a average range, and will adjust right or left window position according the previous searching windows condition.
+```python
+	current_window_distance = win_xright_low - win_xleft_high
+	win_dist_diff = current_window_distance - bottom_window_distance
+	if abs(win_dist_diff) > margin:
+		if invalid_left_windows_number > 0:
+			win_xleft_low += win_dist_diff
+			win_xleft_high += win_dist_diff
+		elif invalid_right_windows_number > 0:
+			win_xright_low += win_dist_diff
+			win_xright_high += win_dist_diff  	
+		else:
+			win_xright_low += win_dist_diff/2
+			win_xright_high += win_dist_diff/2 	
+			win_xleft_low += win_dist_diff/2
+			win_xleft_high += win_dist_diff/2
+			print(" !!!!! Issue of right or left window position  delta:",current_window_distance - 			
+                
+```
+
 
 Moreover, I gave an initial average for both left and right lane position.
 ```python
@@ -117,24 +140,27 @@ leftx_list.append(margin_range*4)
 rightx_list.append(frame_width - margin_range*4)
 
 ```
+here is the final result.
+
+![alt text][image7]
 
 #### 5. Describe how (and identify where in your code) you calculated the radius of curvature of the lane and the position of the vehicle with respect to center.
 
-I did this in lines #481 through #497 in my code in `adv_lane_finding.py`
+I did this in lines #603 through #622 in my code in `adv_lane_finding.py` for cacaluating the curvature
+I did this in lines #624 through #632 in my code in `adv_lane_finding.py` for caculating the position of the vehcile with respect of the center
 
 #### 6. Provide an example image of your result plotted back down onto the road such that the lane area is identified clearly.
 
-I implemented this step in lines #578 through #611 in my code in `adv_lane_finding.py`.  Here is an example of my result on a test image:
-
-![alt text][image6]
+![alt text][image7]
 
 ---
 
 ### Pipeline (video)
 
 #### 1. Provide a link to your final video output.  Your pipeline should perform reasonably well on the entire project video (wobbly lines are ok but no catastrophic failures that would cause the car to drive off the road!).
+the video is too large for Github, so I didn't upload it to github
 
-Here's a [link to my video result](./project_video_output.avi)
+Here's a [link to my video result](./project_video_output_v4.avi)
 
 ![alt text][video0]
 ---
@@ -144,6 +170,6 @@ Here's a [link to my video result](./project_video_output.avi)
 #### 1. Briefly discuss any problems / issues you faced in your implementation of this project.  Where will your pipeline likely fail?  What could you do to make it more robust?
 
 I faced a problems about detecting wrong lane lines while there is another lane line with brighter color or a bright road edge.
-I prevent this wrong detection by using the average lane position if the new lane position has >150 different with the average lane position.
+I prevent this wrong detection by keeping left and right searching windows within a range and also use previous curve line if there is any none valid search windows result.
 
 I also gave a initial average lane position, so the first frame will also have correct detection.
