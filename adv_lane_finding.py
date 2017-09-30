@@ -303,22 +303,21 @@ def process_image_ex(img,img2,img3):
 def check_good_inds(leftx_current,rightx_current,margin,win_y_low,win_y_high,leftx_cr,rightx_cr,invalid_left_windows_number,invalid_right_windows_number,bottom_leftx,bottom_rightx):
 	err_msg = ''
 	# right lane will refer to left cr, because it may be wrong now
+	xright_sign =0
+	xleft_sign =0
+
 	if leftx_cr > 0:
 		xright_sign =1
 	elif leftx_cr <0:
 		xright_sign =-1
-	else:
-		xright_sign =0
 
 	if rightx_cr > 0:
 		xleft_sign =1
 	elif rightx_cr <0:
 		xleft_sign =-1
-	else:
-		xleft_sign =0
 
 	# check the distance between bottom left and right window
-	bottom_window_distance = 200 #(bottom_rightx - margin + xright_sign*margin/2) - (bottom_leftx + margin + xleft_sign*margin/2)
+	bottom_window_distance = 225 #(bottom_rightx - margin + xright_sign*margin/2) - (bottom_leftx + margin + xleft_sign*margin/2)
 
 	win_xleft_low = leftx_current - margin + xleft_sign*margin/2
     	win_xleft_high = leftx_current + margin + xleft_sign*margin/2
@@ -331,19 +330,19 @@ def check_good_inds(leftx_current,rightx_current,margin,win_y_low,win_y_high,lef
 		if invalid_left_windows_number > 0:
 			#if win_dist_diff < -1*margin/2:
 			#	win_dist_diff = -1*margin/2 
-			win_xleft_low += win_dist_diff
+			win_xleft_low += win_dist_diff - margin*2/5
 			win_xleft_high += win_dist_diff
 			print(" !!!!! Issue of left window position  delta:",current_window_distance - bottom_window_distance,current_window_distance,bottom_window_distance)
 			#err_msg += 'win left win_dist_diff '+str(win_dist_diff)+' win_y_low : '+str(win_y_low)
 		elif invalid_right_windows_number > 0:
 			win_xright_low += win_dist_diff
-			win_xright_high += win_dist_diff  	
+			win_xright_high += win_dist_diff + margin*2/5
 			print(" !!!!! Issue of right window position  delta:",current_window_distance - bottom_window_distance,current_window_distance,bottom_window_distance)
 			#err_msg += 'win right win_dist_diff '+str(win_dist_diff)+' win_y_low : '+str(win_y_low)
 		else:
 			win_xright_low += win_dist_diff/2
-			win_xright_high += win_dist_diff/2 	
-			win_xleft_low += win_dist_diff/2
+			win_xright_high += win_dist_diff/2 + margin*2/5	
+			win_xleft_low += win_dist_diff/2 - margin*2/5
 			win_xleft_high += win_dist_diff/2
 			print(" !!!!! Issue of right or left window position  delta:",current_window_distance - bottom_window_distance,current_window_distance,bottom_window_distance)
 			#err_msg += 'win right or left bot dist '+str(bottom_window_distance)+' curr dist '+str(current_window_distance)+' win_y_low : '+str(win_y_low)
@@ -499,7 +498,8 @@ while cap.isOpened():
 
 
 		win_xleft_low, win_xleft_high, win_xright_low,win_xright_high,good_left_inds,good_right_inds,err_message = check_good_inds(leftx_current,rightx_current,margin,win_y_low,win_y_high,0,0,len(invalid_left_windows),len(invalid_right_windows),bottom_leftx,bottom_rightx)
-		err_msg += ' '+err_message+ ' '
+		if err_message!='':
+			err_msg += ' '+err_message+ ' '
     		# Append these indices to the lists
 		#print("######### window minpix ,len of good_left_inds and good_right_inds",window,minpix,len(good_left_inds),len(good_right_inds))
     		# If you found > minpix pixels, recenter next window on their mean position
@@ -507,7 +507,8 @@ while cap.isOpened():
         		leftx_current = np.int(np.mean(nonzerox[good_left_inds]))
 		else:
 			win_xleft_low, win_xleft_high, win_xright_low,win_xright_high,good_left_inds,good_right_inds,err_message = check_good_inds(leftx_list[-1],rightx_list[-1],margin,win_y_low,win_y_high,0,rightx_fit_cr,len(invalid_left_windows),len(invalid_right_windows),bottom_leftx,bottom_rightx)
-			err_msg += ' '+err_message+ ' '
+			if err_message!='':
+				err_msg += ' '+err_message+ ' '
     			if len(good_left_inds) > minpix:
         			leftx_current = np.int(np.mean(nonzerox[good_left_inds]))
 			else:
@@ -517,7 +518,8 @@ while cap.isOpened():
         		rightx_current = np.int(np.mean(nonzerox[good_right_inds]))
 		else:
 			win_xleft_low, win_xleft_high, win_xright_low,win_xright_high,good_left_inds,good_right_inds,err_message = check_good_inds(leftx_list[-1],rightx_list[-1],margin,win_y_low,win_y_high,leftx_fit_cr,0,len(invalid_left_windows),len(invalid_right_windows),bottom_leftx,bottom_rightx)
-			err_msg += ' '+err_message+ ' '
+			if err_message!='':
+				err_msg += ' '+err_message+ ' '
     			if len(good_right_inds) > minpix:        
         			rightx_current = np.int(np.mean(nonzerox[good_right_inds]))
 			else:
@@ -724,7 +726,7 @@ while cap.isOpened():
     	fontScale,
     	fontColor,
     	lineType)
-	msg2 = " vehicle is "+str(right_of_bottom_midpoint_meter) +"m right of center"+err_msg
+	msg2 = " vehicle is "+str(right_of_bottom_midpoint_meter) +"m right of center"#+err_msg
 	bottomLeftCornerOfText = (10,100)
 	cv2.putText(displayimage,msg2, 
     	bottomLeftCornerOfText, 
